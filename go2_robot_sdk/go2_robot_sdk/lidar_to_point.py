@@ -22,12 +22,15 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import numpy as np
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2
-import open3d as o3d
 
+# removed, because there is no open3d installed
+# TODO: restore this
+#import open3d as o3d
 
 class LidarToPointCloud(Node):
     def __init__(self):

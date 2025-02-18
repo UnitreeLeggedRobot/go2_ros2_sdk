@@ -36,7 +36,7 @@ def generate_launch_description():
     with_rviz2 = LaunchConfiguration('rviz2', default='true')
     with_nav2 = LaunchConfiguration('nav2', default='true')
     with_slam = LaunchConfiguration('slam', default='true')
-    with_foxglove = LaunchConfiguration('foxglove', default='true')
+    with_foxglove = LaunchConfiguration('foxglove', default='false')
     with_joystick = LaunchConfiguration('joystick', default='true')
     with_teleop = LaunchConfiguration('teleop', default='true')
 
