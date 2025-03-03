@@ -26,11 +26,13 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node
-from launch.actions import IncludeLaunchDescription
+from launch_ros.actions import Node, ComposableNodeContainer
+from launch.actions import IncludeLaunchDescription, SetLaunchConfiguration
 from launch.launch_description_sources import FrontendLaunchDescriptionSource, PythonLaunchDescriptionSource
 
 def generate_launch_description():
+
+    go2_robot_sdk_dir = get_package_share_directory('go2_robot_sdk')
 
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     with_rviz2 = LaunchConfiguration('rviz2', default='true')
@@ -39,6 +41,16 @@ def generate_launch_description():
     with_foxglove = LaunchConfiguration('foxglove', default='false')
     with_joystick = LaunchConfiguration('joystick', default='true')
     with_teleop = LaunchConfiguration('teleop', default='true')
+
+    # Whether to launch each Nav2 server into individual processes or in a single composed node, to leverage savings in CPU and memory.
+    use_nav2_composition = LaunchConfiguration('use_nav2_composition', default='False')
+
+    map_yaml_file = LaunchConfiguration('map', default=os.path.join(go2_robot_sdk_dir, 'maps', 'map_full'))
+    nav2_config = LaunchConfiguration('nav2_config', default=os.path.join(
+        get_package_share_directory('go2_robot_sdk'),
+        'config',
+        'nav2_params_no_slam.yaml'
+    ))
 
     robot_token = os.getenv('ROBOT_TOKEN', '') # how does this work for multiple robots?
     robot_ip = os.getenv('ROBOT_IP', '')
@@ -55,7 +67,7 @@ def generate_launch_description():
     conn_mode = "single" if len(robot_ip_lst) == 1 and conn_type != "cyclonedds" else "multi"
 
     if conn_mode == 'single':
-        rviz_config = "single_robot_conf.rviz"
+        rviz_config = "single_robot_conf2.rviz"
     else:
         rviz_config = "multi_robot_conf.rviz"
 
@@ -98,12 +110,6 @@ def generate_launch_description():
         'mapper_params_online_async.yaml'
     )
 
-    nav2_config = os.path.join(
-        get_package_share_directory('go2_robot_sdk'),
-        'config',
-        'nav2_params.yaml'
-    )
-
     if conn_mode == 'single':
 
         urdf_file_name = 'go2.urdf'
@@ -135,8 +141,8 @@ def generate_launch_description():
                     ('scan', 'scan'),
                 ],
                 parameters=[{
-                    'target_frame': 'base_link',
-                    'max_height': 0.5
+                    'target_frame': 'base_link_horizontal',
+                    'max_height': 0.3
                 }],
                 output='screen',
             ),
@@ -167,7 +173,7 @@ def generate_launch_description():
                         ('scan', f'robot{i}/scan'),
                     ],
                     parameters=[{
-                        'target_frame': f'robot{i}/base_link',
+                        'target_frame': f'robot{i}/base_link_horizontal',
                         'max_height': 0.1
                     }],
                     output='screen',
@@ -182,11 +188,11 @@ def generate_launch_description():
             executable='go2_driver_node',
             parameters=[{'robot_ip': robot_ip, 'token': robot_token, "conn_type": conn_type}],
         ),
-        Node(
-            package='go2_robot_sdk',
-            executable='lidar_to_pointcloud',
-            parameters=[{'robot_ip_lst': robot_ip_lst, 'map_name': map_name, 'map_save': save_map}],
-        ),
+        # Node(
+        #     package='go2_robot_sdk',
+        #     executable='lidar_to_pointcloud',
+        #     parameters=[{'robot_ip_lst': robot_ip_lst, 'map_name': map_name, 'map_save': save_map}],
+        # ),
         Node(
             package='rviz2',
             namespace='',
@@ -235,16 +241,44 @@ def generate_launch_description():
                 'use_sim_time': use_sim_time,
             }.items(),
         ),
-
+        ComposableNodeContainer(
+            condition=IfCondition(use_nav2_composition),
+            name='nav2_container',
+            namespace='',
+            package='rclcpp_components',
+            executable='component_container',
+            composable_node_descriptions=[],
+            output='screen',
+        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource([
+        #         os.path.join(get_package_share_directory(
+        #             'nav2_bringup'), 'launch', 'navigation_launch.py')
+        #     ]),
+        #     condition=IfCondition(with_nav2),
+        #     launch_arguments={
+        #         'params_file': nav2_config,
+        #         'use_sim_time': use_sim_time,
+        #         'use_composition': use_nav2_composition,
+        #         'map':map_yaml_file,
+        #     }.items(),
+        # ),
+        SetLaunchConfiguration(name='nav2_config', value=os.path.join(
+                get_package_share_directory('go2_robot_sdk'),
+                'config',
+                'nav2_params_slam.yaml'
+            ), condition=IfCondition(with_slam)),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource([
                 os.path.join(get_package_share_directory(
-                    'nav2_bringup'), 'launch', 'navigation_launch.py')
+                    'nav2_bringup'), 'launch', 'bringup_launch.py')
             ]),
             condition=IfCondition(with_nav2),
             launch_arguments={
                 'params_file': nav2_config,
                 'use_sim_time': use_sim_time,
+                'use_composition': use_nav2_composition,
+                'map':map_yaml_file,
             }.items(),
         ),
     ])

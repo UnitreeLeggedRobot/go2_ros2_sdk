@@ -1,19 +1,20 @@
 amcl:
   ros__parameters:
     use_sim_time: False
-    alpha1: 0.2
-    alpha2: 0.2
-    alpha3: 0.2
-    alpha4: 0.2
-    alpha5: 0.2
-    base_frame_id: "base_link"
-    beam_skip_distance: 0.5
+    alpha1: 0.005
+    alpha2: 0.005
+    alpha3: 0.005
+    alpha4: 0.005
+    alpha5: 0.005
+    base_frame_id: "base_link_horizontal"
+    beam_skip_distance: 0.2
     beam_skip_error_threshold: 0.9
     beam_skip_threshold: 0.3
     do_beamskip: false
-    global_frame_id: "odom"
+    #global_frame_id: "odom"
+    global_frame_id: "map"
     lambda_short: 0.1
-    laser_likelihood_max_dist: 2.0
+    laser_likelihood_max_dist: 0.5
     laser_max_range: 10.0
     laser_min_range: -1.0
     laser_model_type: "likelihood_field"
@@ -23,10 +24,10 @@ amcl:
     odom_frame_id: "odom"
     pf_err: 0.05
     pf_z: 0.99
-    recovery_alpha_fast: 0.0
-    recovery_alpha_slow: 0.0
+    recovery_alpha_fast: 0.1
+    recovery_alpha_slow: 0.001
     resample_interval: 1
-    robot_model_type: "nav2_amcl::OmniMotionModel"
+    robot_model_type: "nav2_amcl::DifferentialMotionModel"
     save_pose_rate: 0.5
     sigma_hit: 0.2
     tf_broadcast: true
@@ -42,8 +43,9 @@ amcl:
 bt_navigator:
   ros__parameters:
     use_sim_time: False
-    global_frame: odom
-    robot_base_frame: base_link
+    #global_frame: odom
+    global_frame: map
+    robot_base_frame: base_link_horizontal
     odom_topic: odom
     bt_loop_duration: 10
     default_server_timeout: 20
@@ -97,46 +99,85 @@ controller_server:
       yaw_goal_tolerance: 0.25
     # DWB parameters
     FollowPath:
-      plugin: "dwb_core::DWBLocalPlanner"
-      debug_trajectory_details: True
-      min_vel_x: 0.0
-      min_vel_y: 0.0
-      max_vel_x: 3.0 #changed
-      max_vel_y: 0.0
-      max_vel_theta: 3.0 #changed
-      min_speed_xy: 0.0
-      max_speed_xy: 3.0 #changed
-      min_speed_theta: 0.0
-      # Add high threshold velocity for turtlebot 3 issue.
-      # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
-      acc_lim_x: 2.5
-      acc_lim_y: 2.5
-      acc_lim_theta: 3.2
-      decel_lim_x: -2.5
-      decel_lim_y: -2.5
-      decel_lim_theta: -3.2
-      vx_samples: 20
-      vy_samples: 20
-      vtheta_samples: 20
-      sim_time: 1.7
-      linear_granularity: 0.05
-      angular_granularity: 0.025
-      transform_tolerance: 0.2
-      xy_goal_tolerance: 0.25
-      trans_stopped_velocity: 0.25
-      short_circuit_trajectory_evaluation: True
-      stateful: True
-      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
-      BaseObstacle.scale: 0.02
-      PathAlign.scale: 32.0
-      PathAlign.forward_point_distance: 0.1
-      GoalAlign.scale: 24.0
-      GoalAlign.forward_point_distance: 0.1
-      PathDist.scale: 32.0
-      GoalDist.scale: 24.0
-      RotateToGoal.scale: 32.0
-      RotateToGoal.slowing_factor: 5.0
-      RotateToGoal.lookahead_time: -1.0
+      plugin: "nav2_rotation_shim_controller::RotationShimController"
+      primary_controller: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      #primary_controller: "dwb_core::DWBLocalPlanner"
+      angular_dist_threshold: 0.785
+      forward_sampling_distance: 0.5
+      angular_disengage_threshold: 0.3925
+      rotate_to_heading_angular_vel: 1.8
+      max_angular_accel: 3.2
+      simulate_ahead_time: 1.0
+      rotate_to_goal_heading: false
+
+      desired_linear_vel: 0.5
+      lookahead_dist: 0.6
+      min_lookahead_dist: 0.3
+      max_lookahead_dist: 0.9
+      lookahead_time: 1.5
+      rotate_to_heading_angular_vel: 1.8
+      transform_tolerance: 0.1
+      use_velocity_scaled_lookahead_dist: false
+      min_approach_linear_velocity: 0.05
+      approach_velocity_scaling_dist: 0.6
+      use_collision_detection: true
+      max_allowed_time_to_collision_up_to_carrot: 1.0
+      use_regulated_linear_velocity_scaling: true
+      use_fixed_curvature_lookahead: false
+      curvature_lookahead_dist: 0.25
+      use_cost_regulated_linear_velocity_scaling: false
+      regulated_linear_scaling_min_radius: 0.9
+      regulated_linear_scaling_min_speed: 0.25
+      use_rotate_to_heading: true
+      allow_reversing: false
+      rotate_to_heading_min_angle: 0.785
+      max_angular_accel: 3.2
+      max_robot_pose_search_dist: 10.0
+
+      # DWB:
+#      plugin: "dwb_core::DWBLocalPlanner"
+      # debug_trajectory_details: True
+      # min_vel_x: -0.1
+      # min_vel_y: -0.1
+      # max_vel_x: 1.0 #changed
+      # max_vel_y: 0.1
+      # max_vel_theta: 3.0 #changed
+      # min_speed_xy: 0.0
+      # max_speed_xy: 3.0 #changed
+      # min_speed_theta: 0.0
+      # # Add high threshold velocity for turtlebot 3 issue.
+      # # https://github.com/ROBOTIS-GIT/turtlebot3_simulations/issues/75
+      # acc_lim_x: 2.5
+      # acc_lim_y: 2.5
+      # acc_lim_theta: 3.2
+      # decel_lim_x: -2.5
+      # decel_lim_y: -2.5
+      # decel_lim_theta: -3.2
+      # vx_samples: 20
+      # vy_samples: 20
+      # vtheta_samples: 20
+      # sim_time: 1.7
+      # linear_granularity: 0.05
+      # angular_granularity: 0.025
+      # transform_tolerance: 0.2
+      # xy_goal_tolerance: 0.25
+      # trans_stopped_velocity: 0.25
+      # short_circuit_trajectory_evaluation: True
+      # stateful: True
+      # critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist", "PreferForwardCritic"]
+      # BaseObstacle.scale: 0.02
+      # PathAlign.scale: 32.0
+      # PathAlign.forward_point_distance: 0.1
+      # GoalAlign.scale: 24.0
+      # GoalAlign.forward_point_distance: 0.1
+      # PathDist.scale: 32.0
+      # GoalDist.scale: 24.0
+      # RotateToGoal.scale: 32.0
+      # RotateToGoal.slowing_factor: 5.0
+      # RotateToGoal.lookahead_time: -1.0
+      # PreferForwardCritic.strafe_theta: 1.0
+      # PreferForwardCritic.scale: 32.0
+
 
 local_costmap:
   local_costmap:
@@ -144,7 +185,7 @@ local_costmap:
       update_frequency: 1.0
       publish_frequency: 1.0
       global_frame: odom
-      robot_base_frame: base_link
+      robot_base_frame: base_link_horizontal
       use_sim_time: False
       rolling_window: true
       width: 6
@@ -164,7 +205,7 @@ local_costmap:
         observation_sources: scan
         scan:
           topic: /scan
-          max_obstacle_height: 2.0
+          max_obstacle_height: 0.65
           clearing: True
           marking: True
           data_type: "LaserScan"
@@ -184,8 +225,9 @@ global_costmap:
     ros__parameters:
       update_frequency: 1.0
       publish_frequency: 1.0
-      global_frame: odom
-      robot_base_frame: base_link
+      # global_frame: odom # original
+      global_frame: map
+      robot_base_frame: base_link_horizontal
       use_sim_time: False
       resolution: 0.05
       track_unknown_space: True
@@ -208,7 +250,7 @@ global_costmap:
         observation_sources: scan
         scan:
           topic: scan
-          max_obstacle_height: 2.0
+          max_obstacle_height: 0.65
           clearing: True
           marking: True
           data_type: "LaserScan"
@@ -279,8 +321,9 @@ behavior_server:
     assisted_teleop:
       plugin: "nav2_behaviors::AssistedTeleop"
     local_frame: odom
-    global_frame: odom
-    robot_base_frame: base_link
+    # global_frame: odom
+    global_frame: map
+    robot_base_frame: base_link_horizontal
     transform_tolerance: 0.1
     use_sim_time: true
     simulate_ahead_time: 2.0
@@ -310,8 +353,8 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.25, 0.0, 0.5]
-    min_velocity: [0.0, 0.0, -0.5]
+    max_velocity: [0.25, 0.1, 0.5]
+    min_velocity: [-0.1, -0.1, -0.5]
     max_accel: [2.5, 2.5, 3.2]
     max_decel: [-2.5, -2.5, -3.2]
     odom_topic: "odom"
@@ -325,7 +368,8 @@ velocity_smoother:
 collision_monitor:
   ros__parameters:
     use_sim_time: False
-    base_frame_id: "base_footprint"
+    #base_frame_id: "base_footprint"
+    base_frame_id: "base_link_horizontal"
     odom_frame_id: "odom"
     cmd_vel_in_topic: "cmd_vel_smoothed"
     cmd_vel_out_topic: "cmd_vel"
@@ -446,8 +490,9 @@ docking_server:
     undock_linear_tolerance: 0.05
     undock_angular_tolerance: 0.1
     max_retries: 3
-    base_frame: "base_link"
-    fixed_frame: "odom"
+    base_frame: "base_link_horizontal"
+#    fixed_frame: "odom"
+    fixed_frame: "map"
     dock_backwards: false
     dock_prestaging_tolerance: 0.5
 
