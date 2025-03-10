@@ -142,7 +142,7 @@ def generate_launch_description():
                 ],
                 parameters=[{
                     'target_frame': 'base_link_horizontal',
-                    'max_height': 0.3
+                    'max_height': 0.1
                 }],
                 output='screen',
             ),
@@ -199,7 +199,10 @@ def generate_launch_description():
             executable='rviz2',
             condition=IfCondition(with_rviz2),
             name='rviz2',
-            arguments=['-d' + os.path.join(get_package_share_directory('go2_robot_sdk'), 'config', rviz_config)]
+            arguments=['-d' + os.path.join(get_package_share_directory('go2_robot_sdk'), 'config', rviz_config)],
+            parameters=[
+                {'use_sim_time': use_sim_time}
+                ]
         ),
         Node(
             package='joy',
@@ -230,17 +233,17 @@ def generate_launch_description():
             condition=IfCondition(with_foxglove),
         ),
 
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource([
-                os.path.join(get_package_share_directory(
-                    'slam_toolbox'), 'launch', 'online_async_launch.py')
-            ]),
-            condition=IfCondition(with_slam),
-            launch_arguments={
-                'slam_params_file': slam_toolbox_config,
-                'use_sim_time': use_sim_time,
-            }.items(),
-        ),
+        # IncludeLaunchDescription(
+        #     PythonLaunchDescriptionSource([
+        #         os.path.join(get_package_share_directory(
+        #             'slam_toolbox'), 'launch', 'online_async_launch.py')
+        #     ]),
+        #     condition=IfCondition(with_slam),
+        #     launch_arguments={
+        #         'slam_params_file': slam_toolbox_config,
+        #         'use_sim_time': use_sim_time,
+        #     }.items(),
+        # ),
         ComposableNodeContainer(
             condition=IfCondition(use_nav2_composition),
             name='nav2_container',
